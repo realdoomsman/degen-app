@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DEGEN - Crypto Social</title>
+    <meta name="description" content="DEGEN - Social platform for crypto traders. Trade, share, connect.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <span class="logo-text">DEGEN</span>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="#" class="nav-item active" data-page="feed">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                    </svg>
+                    <span class="nav-label">Feed</span>
+                </a>
+                <a href="#" class="nav-item" data-page="swap">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="17 1 21 5 17 9" />
+                        <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                        <polyline points="7 23 3 19 7 15" />
+                        <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                    </svg>
+                    <span class="nav-label">Swap</span>
+                </a>
+                <a href="#" class="nav-item" data-page="portfolio">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="20" x2="12" y2="10" />
+                        <line x1="18" y1="20" x2="18" y2="4" />
+                        <line x1="6" y1="20" x2="6" y2="16" />
+                    </svg>
+                    <span class="nav-label">Portfolio</span>
+                </a>
+                <a href="#" class="nav-item" data-page="explore">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    <span class="nav-label">Explore</span>
+                </a>
+            </nav>
+
+            <div class="wallet-section">
+                <button class="connect-wallet" id="connectWallet">
+                    <svg class="wallet-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                        <line x1="1" y1="10" x2="23" y2="10" />
+                    </svg>
+                    <span id="walletText">Connect Wallet</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Feed View -->
+            <div class="view active" id="feedView">
+                <header class="view-header">
+                    <h1>Feed</h1>
+                </header>
+
+                <!-- Compose -->
+                <div class="compose-box">
+                    <textarea class="compose-input" placeholder="What's happening?" id="postInput"
+                        maxlength="280"></textarea>
+                    <div class="compose-footer">
+                        <span class="char-count"><span id="charCount">0</span>/280</span>
+                        <button class="btn btn-primary" id="postBtn">Post</button>
+                    </div>
+                </div>
+
+                <!-- Feed -->
+                <div class="feed" id="feed"></div>
+            </div>
+
+            <!-- Swap View -->
+            <div class="view" id="swapView">
+                <header class="view-header">
+                    <h1>Swap</h1>
+                </header>
+
+                <div class="swap-container">
+                    <div class="swap-card">
+                        <!-- From Token -->
+                        <div class="swap-field">
+                            <label>You pay</label>
+                            <div class="token-input-row">
+                                <input type="number" class="token-amount" id="fromAmount" placeholder="0.00" step="any">
+                                <button class="token-select" id="fromTokenSelect">
+                                    <span id="fromTokenSymbol">SOL</span>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        width="16" height="16">
+                                        <polyline points="6 9 12 15 18 9" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="token-balance">
+                                Balance: <span id="fromBalance">0.00</span>
+                                <button class="max-btn" id="maxBtn">MAX</button>
+                            </div>
+                        </div>
+
+                        <!-- Swap Direction -->
+                        <button class="swap-direction" id="swapDirection">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19" />
+                                <polyline points="19 12 12 19 5 12" />
+                            </svg>
+                        </button>
+
+                        <!-- To Token -->
+                        <div class="swap-field">
+                            <label>You receive</label>
+                            <div class="token-input-row">
+                                <input type="number" class="token-amount" id="toAmount" placeholder="0.00" readonly>
+                                <button class="token-select" id="toTokenSelect">
+                                    <span id="toTokenSymbol">USDC</span>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        width="16" height="16">
+                                        <polyline points="6 9 12 15 18 9" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Swap Info -->
+                        <div class="swap-info" id="swapInfo" style="display: none;">
+                            <div class="info-row">
+                                <span>Rate</span>
+                                <span id="swapRate">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span>Price Impact</span>
+                                <span id="priceImpact">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span>Minimum received</span>
+                                <span id="minReceived">-</span>
+                            </div>
+                        </div>
+
+                        <!-- Swap Button -->
+                        <button class="btn btn-primary btn-full" id="swapBtn" disabled>
+                            Enter an amount
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Portfolio View -->
+            <div class="view" id="portfolioView">
+                <header class="view-header">
+                    <h1>Portfolio</h1>
+                </header>
+
+                <div class="portfolio-container">
+                    <div class="portfolio-header">
+                        <div class="portfolio-value">
+                            <span class="label">Total Value</span>
+                            <span class="value" id="portfolioTotal">$0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="token-list" id="tokenList">
+                        <div class="empty-state">Connect wallet to view portfolio</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Explore View -->
+            <div class="view" id="exploreView">
+                <header class="view-header">
+                    <h1>Explore</h1>
+                    <div class="search-box">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18"
+                            height="18">
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                        <input type="text" placeholder="Search tokens..." id="tokenSearch">
+                    </div>
+                </header>
+
+                <div class="trending-tokens" id="trendingTokens"></div>
+            </div>
+        </main>
+
+        <!-- Right Sidebar - Prices -->
+        <aside class="right-sidebar">
+            <div class="widget">
+                <h3 class="widget-title">Prices</h3>
+                <div class="price-list" id="priceList"></div>
+            </div>
+
+            <div class="widget">
+                <h3 class="widget-title">Trending</h3>
+                <div class="trending-list" id="trendingList"></div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Token Select Modal -->
+    <div class="modal" id="tokenModal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Select Token</h2>
+                <button class="close-btn" id="closeTokenModal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="token-search-input" id="tokenSearchInput"
+                    placeholder="Search by name or paste address">
+                <div class="common-tokens">
+                    <span class="section-label">Popular</span>
+                    <div class="token-chips" id="popularTokens"></div>
+                </div>
+                <div class="token-results" id="tokenResults"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
