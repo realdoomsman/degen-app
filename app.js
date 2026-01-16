@@ -1,5 +1,9 @@
 // DEGEN - Crypto Social with Real Data Integration
 // =================================================
+console.log('DEGEN: app.js loaded');
+window.addEventListener('error', (e) => {
+    console.error('DEGEN: Global error:', e.message, 'at', e.filename, ':', e.lineno);
+});
 
 // Configuration - Supabase Project: soltag (mvglowfvayvpqsfbortv)
 const SUPABASE_URL = 'https://mvglowfvayvpqsfbortv.supabase.co';
@@ -55,39 +59,51 @@ function initSupabase() {
     return false;
 }
 
-// Robust initialization
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', startApp);
-} else {
-    startApp();
-}
-
 function startApp() {
-    initSupabase();
-    initializeApp();
+    console.log('DEGEN: Starting app...');
+    try {
+        const hasSupabase = initSupabase();
+        console.log('DEGEN: Supabase status:', hasSupabase);
+
+        initializeApp();
+    } catch (err) {
+        console.error('DEGEN: Critical initialization error:', err);
+        alert('DEGEN: App failed to start. Check console for details.');
+    }
 }
 
 function initializeApp() {
+    console.log('DEGEN: Initializing UI components...');
     const elements = getElements();
     window.appElements = elements;
 
-    setupNavigation(elements);
-    setupWalletConnection(elements);
-    setupFeed(elements);
-    setupSwap(elements);
-    setupTokenModal(elements);
+    // Check for missing elements to avoid crashing
+    const missing = Object.entries(elements).filter(([k, v]) => !v).map(([k]) => k);
+    if (missing.length > 0) {
+        console.warn('DEGEN: Missing DOM elements:', missing);
+    }
 
-    // Load real data
-    loadPosts(elements);
-    fetchRealPrices(elements);
-    renderTokenList(elements, '');
-    renderTrendingTokens(elements);
+    try {
+        if (elements.navItems && elements.navItems.length > 0) setupNavigation(elements);
+        if (elements.connectWallet) setupWalletConnection(elements);
+        if (elements.postBtn) setupFeed(elements);
+        if (elements.swapBtn) setupSwap(elements);
+        if (elements.tokenModal) setupTokenModal(elements);
 
-    // Refresh data periodically
-    setInterval(() => fetchRealPrices(elements), 15000);
-    setInterval(() => loadPosts(elements), 30000);
+        // Load real data
+        loadPosts(elements);
+        fetchRealPrices(elements);
+        if (elements.popularTokens) renderTokenList(elements, '');
+        if (elements.trendingTokens) renderTrendingTokens(elements);
 
-    console.log('DEGEN app initialized with real data');
+        // Refresh data periodically
+        setInterval(() => fetchRealPrices(elements), 15000);
+        setInterval(() => loadPosts(elements), 30000);
+
+        console.log('DEGEN: App initialized successfully');
+    } catch (err) {
+        console.error('DEGEN: Component setup failed:', err);
+    }
 }
 
 function getElements() {
@@ -1063,4 +1079,11 @@ function selectToken(elements, mint) {
 
     closeTokenModal(elements);
     if (elements.fromAmount.value) getQuote(elements);
+}
+
+// Handle App Initialization
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startApp);
+} else {
+    startApp();
 }
