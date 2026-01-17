@@ -468,44 +468,8 @@ async function loadPosts(elements) {
         }
 
         if (posts.length === 0) {
-            posts = [
-                {
-                    id: 1,
-                    author_name: 'whale.sol',
-                    author_handle: '@whale_alert',
-                    content: 'Just swapped 500 $SOL for $BONK. The charts are looking strong.',
-                    likes: 142,
-                    reposts: 23,
-                    created_at: new Date(Date.now() - 300000).toISOString()
-                },
-                {
-                    id: 2,
-                    author_name: 'CryptoTrader',
-                    author_handle: '@alpha_calls',
-                    content: 'New $JUP airdrop coming next month. Make sure you have been using the platform.',
-                    likes: 892,
-                    reposts: 234,
-                    created_at: new Date(Date.now() - 1080000).toISOString()
-                },
-                {
-                    id: 3,
-                    author_name: 'SolanaDaily',
-                    author_handle: '@sol_daily',
-                    content: '$SOL breaking $200 resistance. Next target $250. Volume looking healthy across DEXs.',
-                    likes: 1024,
-                    reposts: 312,
-                    created_at: new Date(Date.now() - 3600000).toISOString()
-                },
-                {
-                    id: 4,
-                    author_name: 'DegenLabs',
-                    author_handle: '@degen_labs',
-                    content: '$WIF up 40% this week. What are you holding?',
-                    likes: 112,
-                    reposts: 12,
-                    created_at: new Date(Date.now() - 7200000).toISOString()
-                }
-            ];
+            // No posts yet
+            posts = [];
         }
         renderFeed(elements);
 
@@ -1426,26 +1390,8 @@ function formatPairAge(timestamp) {
 // WALLETS VIEW (KOL TRACKING)
 // ============================================
 
-const sampleLeaderboard = [
-    { wallet: '7xKX...9mP4', pnl: '+$847,231', positive: true },
-    { wallet: '3nJR...kL2s', pnl: '+$523,412', positive: true },
-    { wallet: 'Hq5T...vW8n', pnl: '+$412,891', positive: true },
-    { wallet: '9pLm...xK3j', pnl: '+$298,445', positive: true },
-    { wallet: '2wQr...bN7h', pnl: '+$187,329', positive: true },
-    { wallet: 'Ks4X...mP9v', pnl: '+$156,782', positive: true },
-    { wallet: '8jTy...cR2q', pnl: '+$134,567', positive: true },
-    { wallet: 'Xn3L...hK8w', pnl: '+$98,234', positive: true },
-    { wallet: '5mRt...pV4s', pnl: '+$76,543', positive: true },
-    { wallet: 'Bw7J...nL6x', pnl: '+$54,321', positive: true }
-];
-
-const sampleWhaleTrades = [
-    { type: 'buy', token: 'BONK', amount: '142,500 SOL', time: '2m ago' },
-    { type: 'sell', token: 'WIF', amount: '89,200 SOL', time: '5m ago' },
-    { type: 'buy', token: 'POPCAT', amount: '67,800 SOL', time: '8m ago' },
-    { type: 'buy', token: 'MEW', amount: '45,000 SOL', time: '12m ago' },
-    { type: 'sell', token: 'MYRO', amount: '32,100 SOL', time: '15m ago' }
-];
+const sampleLeaderboard = [];
+const sampleWhaleTrades = [];
 
 let trackedWallets = [];
 
