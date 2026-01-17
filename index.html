@@ -9,9 +9,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=5">
 </head>
 
 <body>
@@ -53,6 +53,38 @@
                         <line x1="21" y1="21" x2="16.65" y2="16.65" />
                     </svg>
                     <span class="nav-label">Explore</span>
+                </a>
+                <a href="#" class="nav-item" data-page="scanner">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <circle cx="12" cy="12" r="6" />
+                        <circle cx="12" cy="12" r="2" />
+                        <line x1="12" y1="2" x2="12" y2="6" />
+                        <line x1="12" y1="18" x2="12" y2="22" />
+                    </svg>
+                    <span class="nav-label">Scanner</span>
+                </a>
+                <a href="#" class="nav-item" data-page="wallets">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                    <span class="nav-label">Wallets</span>
+                </a>
+                <a href="#" class="nav-item" data-page="terminal">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 6v6l4 2" />
+                    </svg>
+                    <span class="nav-label">Trade</span>
+                </a>
+                <a href="#" class="nav-item" data-page="pulse">
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                    </svg>
+                    <span class="nav-label">Pulse</span>
                 </a>
             </nav>
 
@@ -199,6 +231,319 @@
 
                 <div class="trending-tokens" id="trendingTokens"></div>
             </div>
+
+            <!-- Scanner View -->
+            <div class="view" id="scannerView">
+                <header class="view-header">
+                    <h1>Token Scanner</h1>
+                </header>
+
+                <div class="scanner-container">
+                    <!-- Search Input -->
+                    <div class="scanner-search">
+                        <div class="scanner-input-wrapper">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20"
+                                height="20">
+                                <circle cx="11" cy="11" r="8" />
+                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                            </svg>
+                            <input type="text" id="scannerInput" placeholder="Paste token contract address..."
+                                autocomplete="off">
+                            <button class="scan-btn" id="scanBtn">Scan</button>
+                        </div>
+                        <div class="scanner-hint">Paste any Solana token CA to get instant data, charts, and holder
+                            analysis</div>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div class="scanner-loading" id="scannerLoading" style="display: none;">
+                        <div class="loading-spinner"></div>
+                        <span>Scanning token...</span>
+                    </div>
+
+                    <!-- Token Result -->
+                    <div class="scanner-result" id="scannerResult" style="display: none;">
+                        <!-- Token Header -->
+                        <div class="token-header-card">
+                            <div class="token-main-info">
+                                <div class="token-logo-large" id="tokenLogo">?</div>
+                                <div>
+                                    <div class="token-name-large" id="tokenName">Token Name</div>
+                                    <div class="token-symbol-large" id="tokenSymbol">SYMBOL</div>
+                                </div>
+                            </div>
+                            <div class="token-badges" id="tokenBadges"></div>
+                        </div>
+
+                        <!-- Price Section -->
+                        <div class="scanner-price-card">
+                            <div class="scanner-price">
+                                <span class="price-label">Price</span>
+                                <span class="price-value" id="scannerPrice">$0.00</span>
+                            </div>
+                            <div class="price-change-badge" id="scannerPriceChange">+0.00%</div>
+                        </div>
+
+                        <!-- Stats Grid -->
+                        <div class="scanner-stats-grid">
+                            <div class="stat-card">
+                                <span class="stat-label">Market Cap</span>
+                                <span class="stat-value" id="scannerMcap">$0</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-label">24h Volume</span>
+                                <span class="stat-value" id="scannerVolume">$0</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-label">Liquidity</span>
+                                <span class="stat-value" id="scannerLiquidity">$0</span>
+                            </div>
+                            <div class="stat-card">
+                                <span class="stat-label">FDV</span>
+                                <span class="stat-value" id="scannerFdv">$0</span>
+                            </div>
+                        </div>
+
+                        <!-- Chart Embed -->
+                        <div class="scanner-chart-card">
+                            <h3>Price Chart</h3>
+                            <div class="chart-embed" id="chartEmbed">
+                                <iframe id="dexscreenerChart" width="100%" height="400" frameborder="0"></iframe>
+                            </div>
+                        </div>
+
+                        <!-- Token Info -->
+                        <div class="scanner-info-card">
+                            <h3>Token Info</h3>
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <span class="info-label">Contract</span>
+                                    <span class="info-value mono" id="scannerContract">-</span>
+                                    <button class="copy-btn" id="copyContract">📋</button>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">DEX</span>
+                                    <span class="info-value" id="scannerDex">-</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Pair Age</span>
+                                    <span class="info-value" id="scannerAge">-</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Txns (24h)</span>
+                                    <span class="info-value" id="scannerTxns">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="scanner-actions">
+                            <button class="action-btn-large buy-btn" id="quickBuyBtn">
+                                <span>Buy on Axiom</span>
+                            </button>
+                            <a class="action-btn-large dex-btn" id="dexScreenerLink" href="#" target="_blank">
+                                <span>DexScreener</span>
+                            </a>
+                            <a class="action-btn-large birdeye-btn" id="birdeyeLink" href="#" target="_blank">
+                                <span>Birdeye</span>
+                            </a>
+                        </div>
+
+                        <!-- Holder Analysis -->
+                        <div class="scanner-holders-card" id="holdersCard">
+                            <h3>Holder Analysis</h3>
+                            <div class="holders-info" id="holdersInfo">
+                                <div class="holder-stat">
+                                    <span class="holder-label">Top 10 Hold</span>
+                                    <span class="holder-value" id="top10Hold">-</span>
+                                </div>
+                                <div class="holder-stat">
+                                    <span class="holder-label">Holders</span>
+                                    <span class="holder-value" id="holderCount">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div class="scanner-empty" id="scannerEmpty">
+                        <div class="empty-icon-text">SCAN</div>
+                        <h3>Paste a Token Address</h3>
+                        <p>Get instant token data, charts, holder analysis and more!</p>
+                        <div class="example-tokens">
+                            <span class="example-label">Try these:</span>
+                            <button class="example-btn"
+                                data-mint="DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263">$BONK</button>
+                            <button class="example-btn"
+                                data-mint="EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm">$WIF</button>
+                            <button class="example-btn"
+                                data-mint="JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN">$JUP</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wallets View (KOL Tracking) -->
+            <div class="view" id="walletsView">
+                <header class="view-header">
+                    <h1>Wallet Tracker</h1>
+                </header>
+
+                <div class="wallets-container">
+                    <!-- Add Wallet -->
+                    <div class="add-wallet-section">
+                        <div class="wallet-input-wrapper">
+                            <input type="text" id="walletAddressInput" placeholder="Enter wallet address to track...">
+                            <button class="add-wallet-btn" id="addWalletBtn">Track</button>
+                        </div>
+                    </div>
+
+                    <!-- Top Traders Leaderboard -->
+                    <div class="leaderboard-section">
+                        <div class="section-header">
+                            <h2>Top Traders (24h)</h2>
+                            <div class="leaderboard-tabs">
+                                <button class="tab-btn active" data-period="24h">24h</button>
+                                <button class="tab-btn" data-period="7d">7d</button>
+                                <button class="tab-btn" data-period="30d">30d</button>
+                            </div>
+                        </div>
+                        <div class="leaderboard-list" id="leaderboardList">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Tracked Wallets -->
+                    <div class="tracked-wallets-section">
+                        <div class="section-header">
+                            <h2>Tracked Wallets</h2>
+                        </div>
+                        <div class="tracked-wallets-list" id="trackedWalletsList">
+                            <div class="empty-state">No wallets tracked yet</div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Whale Trades -->
+                    <div class="whale-trades-section">
+                        <div class="section-header">
+                            <h2>Whale Activity</h2>
+                            <span class="live-badge">LIVE</span>
+                        </div>
+                        <div class="whale-trades-list" id="whaleTradesList">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Terminal View (Built-in Trading) -->
+            <div class="view" id="terminalView">
+                <header class="view-header">
+                    <h1>Trade</h1>
+                </header>
+
+                <div class="terminal-container">
+                    <!-- Token Input with Live Info -->
+                    <div class="terminal-token-section">
+                        <div class="terminal-input-section">
+                            <label>Token Address</label>
+                            <input type="text" id="terminalTokenInput" placeholder="Paste CA to trade...">
+                        </div>
+                        <div class="terminal-token-info" id="terminalTokenInfo">
+                            <div class="terminal-empty-state">
+                                <p>Enter a token address to start trading</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Trade Panel -->
+                    <div class="quick-trade-panel">
+                        <div class="trade-type-tabs">
+                            <button class="trade-tab active" data-type="buy">BUY</button>
+                            <button class="trade-tab" data-type="sell">SELL</button>
+                        </div>
+
+                        <div class="amount-section">
+                            <label>Amount (SOL)</label>
+                            <div class="amount-presets">
+                                <button class="preset-btn" data-amount="0.1">0.1</button>
+                                <button class="preset-btn" data-amount="0.5">0.5</button>
+                                <button class="preset-btn active" data-amount="1">1</button>
+                                <button class="preset-btn" data-amount="2">2</button>
+                                <button class="preset-btn" data-amount="5">5</button>
+                            </div>
+                            <div class="custom-amount">
+                                <input type="number" id="customAmount" placeholder="Custom" step="0.1">
+                                <span class="amount-label">SOL</span>
+                            </div>
+                        </div>
+
+                        <div class="trade-settings">
+                            <div class="slippage-setting">
+                                <label>Slippage</label>
+                                <div class="slippage-options">
+                                    <button class="slippage-btn" data-slip="5">5%</button>
+                                    <button class="slippage-btn active" data-slip="10">10%</button>
+                                    <button class="slippage-btn" data-slip="15">15%</button>
+                                    <button class="slippage-btn" data-slip="25">25%</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quote Display -->
+                        <div class="trade-quote" id="tradeQuote" style="display: none;">
+                            <div class="quote-row">
+                                <span>You Pay</span>
+                                <span id="quoteInput">0 SOL</span>
+                            </div>
+                            <div class="quote-row">
+                                <span>You Receive</span>
+                                <span id="quoteOutput">0 TOKENS</span>
+                            </div>
+                            <div class="quote-row small">
+                                <span>Price Impact</span>
+                                <span id="quotePriceImpact">0%</span>
+                            </div>
+                        </div>
+
+                        <button class="execute-trade-btn" id="executeTradeBtn">
+                            Connect Wallet to Trade
+                        </button>
+
+                        <!-- Trade Status -->
+                        <div class="trade-status" id="tradeStatus" style="display: none;">
+                            <div class="status-message" id="statusMessage"></div>
+                        </div>
+                    </div>
+
+                    <!-- Embedded Chart -->
+                    <div class="terminal-chart" id="terminalChart" style="display: none;">
+                        <iframe id="terminalChartFrame" width="100%" height="350" frameborder="0"></iframe>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pulse View (New Tokens) -->
+            <div class="view" id="pulseView">
+                <header class="view-header">
+                    <h1>Pulse</h1>
+                    <div class="pulse-tabs">
+                        <button class="pulse-tab active" data-filter="new">New Pairs</button>
+                        <button class="pulse-tab" data-filter="trending">Trending</button>
+                        <button class="pulse-tab" data-filter="graduated">Graduated</button>
+                    </div>
+                </header>
+
+                <div class="pulse-container">
+                    <div class="pulse-loading" id="pulseLoading">
+                        <div class="loading-spinner"></div>
+                        <span>Loading tokens...</span>
+                    </div>
+                    <div class="pulse-list" id="pulseList">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
         </main>
 
         <!-- Right Sidebar - Prices -->
@@ -246,7 +591,7 @@
     <!-- Scripts -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=5"></script>
 </body>
 
 </html>

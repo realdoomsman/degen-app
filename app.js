@@ -10,8 +10,22 @@ const SUPABASE_URL = 'https://mvglowfvayvpqsfbortv.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im12Z2xvd2Z2YXl2cHFzZmJvcnR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5ODEyNTgsImV4cCI6MjA4MDU1NzI1OH0.AMt0qkySg8amOyrBbypFZnrRaEPbIrpmMYGGMxksPks';
 
 const JUPITER_API = 'https://quote-api.jup.ag/v6';
-const JUPITER_PRICE_API = 'https://price.jup.ag/v6';
+const COINGECKO_API = 'https://api.coingecko.com/api/v3';
 const HELIUS_RPC = 'https://mainnet.helius-rpc.com/?api-key=15319bf4-5b40-4958-ac8d-6313aa55eb92';
+
+// CoinGecko ID mapping for each token
+const COINGECKO_IDS = {
+    SOL: 'solana',
+    USDC: 'usd-coin',
+    USDT: 'tether',
+    BONK: 'bonk',
+    WIF: 'dogwifcoin',
+    JUP: 'jupiter-exchange-solana',
+    RAY: 'raydium',
+    PYTH: 'pyth-network',
+    RNDR: 'render-token',
+    JITO: 'jito-governance-token'
+};
 
 // Token List (Common Solana tokens with accurate mints)
 const TOKENS = {
@@ -33,15 +47,19 @@ let publicKey = null;
 let tokenBalances = {};
 let currentQuote = null;
 let currentPrices = {
-    SOL: 198.50,
+    SOL: 144.00,
     USDC: 1.00,
     USDT: 1.00,
-    BONK: 0.00003,
-    WIF: 2.45,
-    JUP: 1.12
+    BONK: 0.00001,
+    WIF: 0.39,
+    JUP: 0.22,
+    RAY: 1.14,
+    PYTH: 0.07,
+    RNDR: 2.28,
+    JITO: 0.42
 };
 let posts = [];
-let supabase = null;
+let supabaseClient = null;
 
 let swapState = {
     fromToken: TOKENS.SOL,
@@ -51,7 +69,7 @@ let swapState = {
 // Initialize Supabase client
 function initSupabase() {
     if (typeof window.supabase !== 'undefined') {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         console.log('Supabase initialized');
         return true;
     }
@@ -342,8 +360,8 @@ function setupFeed(elements) {
 
 async function loadPosts(elements) {
     try {
-        if (supabase) {
-            const { data, error } = await supabase
+        if (supabaseClient) {
+            const { data, error } = await supabaseClient
                 .from('posts')
                 .select('*')
                 .order('created_at', { ascending: false })
@@ -430,9 +448,9 @@ async function createPost(elements) {
     };
 
     try {
-        if (supabase) {
+        if (supabaseClient) {
             // Save to Supabase
-            const { data, error } = await supabase
+            const { data, error } = await supabaseClient
                 .from('posts')
                 .insert([newPost])
                 .select();
@@ -582,10 +600,10 @@ async function handlePostAction(action, postId, elements) {
 }
 
 async function updatePostInDB(post) {
-    if (!supabase) return;
+    if (!supabaseClient) return;
 
     try {
-        await supabase
+        await supabaseClient
             .from('posts')
             .update({
                 likes: post.likes,
@@ -600,27 +618,30 @@ async function updatePostInDB(post) {
 }
 
 // ============================================
-// REAL PRICES (JUPITER API)
+// REAL PRICES (COINGECKO API)
 // ============================================
 
 async function fetchRealPrices(elements) {
     try {
-        const mints = Object.values(TOKENS).map(t => t.mint).join(',');
-        const response = await fetch(`${JUPITER_PRICE_API}/price?ids=${mints}`);
+        // Build the CoinGecko API URL with all token IDs
+        const coinIds = Object.values(COINGECKO_IDS).join(',');
+        const response = await fetch(
+            `${COINGECKO_API}/simple/price?ids=${coinIds}&vs_currencies=usd&include_24hr_change=true`
+        );
 
-        if (!response.ok) throw new Error('Price API failed');
+        if (!response.ok) throw new Error('CoinGecko API failed: ' + response.status);
 
         const data = await response.json();
 
-        // Update prices from API
-        for (const [symbol, token] of Object.entries(TOKENS)) {
-            const priceInfo = data.data?.[token.mint];
-            if (priceInfo && priceInfo.price) {
-                currentPrices[symbol] = priceInfo.price;
+        // Update prices from API response
+        for (const [symbol, geckoId] of Object.entries(COINGECKO_IDS)) {
+            const priceInfo = data[geckoId];
+            if (priceInfo && priceInfo.usd !== undefined) {
+                currentPrices[symbol] = priceInfo.usd;
             }
         }
 
-        console.log('Real prices fetched:', currentPrices);
+        console.log('✓ Real prices fetched from CoinGecko:', currentPrices);
         renderPrices(elements);
         renderTrending(elements);
 
@@ -630,6 +651,7 @@ async function fetchRealPrices(elements) {
 
     } catch (err) {
         console.warn('Price fetch failed, using fallback data:', err.message);
+        // Still render with fallback/cached prices
         renderPrices(elements);
         renderTrending(elements);
         renderTrendingTokens(elements);
@@ -980,8 +1002,8 @@ async function executeSwap(elements) {
         };
 
         posts.unshift(swapPost);
-        if (supabase) {
-            await supabase.from('posts').insert([swapPost]);
+        if (supabaseClient) {
+            await supabaseClient.from('posts').insert([swapPost]);
         }
         localStorage.setItem('degen_posts', JSON.stringify(posts.slice(0, 100)));
         renderFeed(elements);
@@ -1081,9 +1103,858 @@ function selectToken(elements, mint) {
     if (elements.fromAmount.value) getQuote(elements);
 }
 
+// ============================================
+// TOKEN SCANNER (DEXSCREENER API)
+// ============================================
+
+const DEXSCREENER_API = 'https://api.dexscreener.com/latest/dex';
+
+let currentScanToken = null;
+
+function setupScanner() {
+    const scannerInput = document.getElementById('scannerInput');
+    const scanBtn = document.getElementById('scanBtn');
+    const copyContract = document.getElementById('copyContract');
+    const quickBuyBtn = document.getElementById('quickBuyBtn');
+
+    if (!scannerInput || !scanBtn) return;
+
+    // Scan button click
+    scanBtn.addEventListener('click', () => {
+        const address = scannerInput.value.trim();
+        if (address) scanToken(address);
+    });
+
+    // Enter key to scan
+    scannerInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            const address = scannerInput.value.trim();
+            if (address) scanToken(address);
+        }
+    });
+
+    // Example token buttons
+    document.querySelectorAll('.example-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const mint = btn.dataset.mint;
+            scannerInput.value = mint;
+            scanToken(mint);
+        });
+    });
+
+    // Copy contract button
+    if (copyContract) {
+        copyContract.addEventListener('click', () => {
+            if (currentScanToken) {
+                navigator.clipboard.writeText(currentScanToken.baseToken?.address || '');
+                showToast('Contract copied!', 'success');
+            }
+        });
+    }
+
+    // Quick buy button - opens Axiom with the token
+    if (quickBuyBtn) {
+        quickBuyBtn.addEventListener('click', () => {
+            if (currentScanToken) {
+                const mint = currentScanToken.baseToken?.address;
+                if (mint) {
+                    window.open(`https://axiom.trade/t/${mint}`, '_blank');
+                }
+            }
+        });
+    }
+}
+
+async function scanToken(address) {
+    const loading = document.getElementById('scannerLoading');
+    const result = document.getElementById('scannerResult');
+    const empty = document.getElementById('scannerEmpty');
+
+    // Validate address format
+    if (!address || address.length < 32) {
+        showToast('Invalid token address', 'error');
+        return;
+    }
+
+    // Show loading
+    loading.style.display = 'flex';
+    result.style.display = 'none';
+    empty.style.display = 'none';
+
+    try {
+        // Fetch token data from DexScreener
+        const response = await fetch(`${DEXSCREENER_API}/tokens/${address}`);
+
+        if (!response.ok) throw new Error('Token not found');
+
+        const data = await response.json();
+
+        if (!data.pairs || data.pairs.length === 0) {
+            throw new Error('No trading pairs found for this token');
+        }
+
+        // Get the pair with highest liquidity
+        const pair = data.pairs.reduce((best, current) => {
+            const currentLiq = current.liquidity?.usd || 0;
+            const bestLiq = best.liquidity?.usd || 0;
+            return currentLiq > bestLiq ? current : best;
+        }, data.pairs[0]);
+
+        currentScanToken = pair;
+
+        // Update UI
+        renderScannerResult(pair);
+
+        loading.style.display = 'none';
+        result.style.display = 'block';
+
+        console.log('✓ Token scanned:', pair);
+
+    } catch (err) {
+        console.error('Scan error:', err);
+        loading.style.display = 'none';
+        empty.style.display = 'block';
+        showToast(err.message || 'Failed to scan token', 'error');
+    }
+}
+
+function renderScannerResult(pair) {
+    const token = pair.baseToken;
+    const quoteToken = pair.quoteToken;
+
+    // Token Header
+    const tokenLogo = document.getElementById('tokenLogo');
+    const tokenName = document.getElementById('tokenName');
+    const tokenSymbol = document.getElementById('tokenSymbol');
+    const tokenBadges = document.getElementById('tokenBadges');
+
+    if (token.logoURI) {
+        tokenLogo.innerHTML = `<img src="${token.logoURI}" alt="${token.symbol}" onerror="this.parentElement.textContent='${(token.symbol || '?').slice(0, 2)}'">`;
+    } else {
+        tokenLogo.textContent = (token.symbol || '?').slice(0, 2).toUpperCase();
+    }
+
+    tokenName.textContent = token.name || 'Unknown Token';
+    tokenSymbol.textContent = `$${token.symbol || '???'}`;
+
+    // Badges
+    let badgesHtml = '';
+
+    // Check if it's a Pump.fun token (they often have specific patterns)
+    if (pair.url && pair.url.includes('pump.fun')) {
+        badgesHtml += '<span class="token-badge pump">🚀 Pump.fun</span>';
+    }
+
+    // Check pair age for "New" badge (< 24 hours)
+    if (pair.pairCreatedAt) {
+        const ageHours = (Date.now() - pair.pairCreatedAt) / (1000 * 60 * 60);
+        if (ageHours < 24) {
+            badgesHtml += '<span class="token-badge new">🆕 New</span>';
+        }
+    }
+
+    tokenBadges.innerHTML = badgesHtml;
+
+    // Price
+    const price = parseFloat(pair.priceUsd) || 0;
+    const priceChange = parseFloat(pair.priceChange?.h24) || 0;
+
+    document.getElementById('scannerPrice').textContent = '$' + formatScannerPrice(price);
+
+    const priceChangeBadge = document.getElementById('scannerPriceChange');
+    priceChangeBadge.textContent = (priceChange >= 0 ? '+' : '') + priceChange.toFixed(2) + '%';
+    priceChangeBadge.className = 'price-change-badge ' + (priceChange >= 0 ? 'positive' : 'negative');
+
+    // Stats
+    document.getElementById('scannerMcap').textContent = '$' + formatLargeNumber(pair.marketCap || pair.fdv || 0);
+    document.getElementById('scannerVolume').textContent = '$' + formatLargeNumber(pair.volume?.h24 || 0);
+    document.getElementById('scannerLiquidity').textContent = '$' + formatLargeNumber(pair.liquidity?.usd || 0);
+    document.getElementById('scannerFdv').textContent = '$' + formatLargeNumber(pair.fdv || 0);
+
+    // Token Info
+    document.getElementById('scannerContract').textContent = shortenAddress(token.address);
+    document.getElementById('scannerDex').textContent = pair.dexId?.toUpperCase() || 'Unknown DEX';
+
+    // Pair Age
+    if (pair.pairCreatedAt) {
+        document.getElementById('scannerAge').textContent = formatPairAge(pair.pairCreatedAt);
+    } else {
+        document.getElementById('scannerAge').textContent = 'Unknown';
+    }
+
+    // Transactions
+    const txns = (pair.txns?.h24?.buys || 0) + (pair.txns?.h24?.sells || 0);
+    document.getElementById('scannerTxns').textContent = formatNumber(txns, 0);
+
+    // Chart - Embed DexScreener chart
+    const chartIframe = document.getElementById('dexscreenerChart');
+    if (pair.chainId && pair.pairAddress) {
+        chartIframe.src = `https://dexscreener.com/${pair.chainId}/${pair.pairAddress}?embed=1&theme=dark&trades=0&info=0`;
+    }
+
+    // External Links
+    document.getElementById('dexScreenerLink').href = pair.url || `https://dexscreener.com/solana/${token.address}`;
+    document.getElementById('birdeyeLink').href = `https://birdeye.so/token/${token.address}?chain=solana`;
+
+    // Holder info - using estimates from DexScreener data if available
+    // DexScreener doesn't provide holder data directly, so we'll show what we have
+    document.getElementById('top10Hold').textContent = '-';
+    document.getElementById('holderCount').textContent = '-';
+}
+
+function formatScannerPrice(price) {
+    if (!price || isNaN(price)) return '0.00';
+    if (price < 0.00000001) return price.toExponential(2);
+    if (price < 0.0001) return price.toFixed(8);
+    if (price < 0.01) return price.toFixed(6);
+    if (price < 1) return price.toFixed(4);
+    if (price < 100) return price.toFixed(2);
+    return price.toFixed(2);
+}
+
+function formatLargeNumber(num) {
+    if (!num || isNaN(num)) return '0';
+    if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+    if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+    if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
+    return num.toFixed(2);
+}
+
+function formatPairAge(timestamp) {
+    const now = Date.now();
+    const diff = now - timestamp;
+
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(hours / 24);
+    const months = Math.floor(days / 30);
+
+    if (months > 0) return months + ' month' + (months > 1 ? 's' : '');
+    if (days > 0) return days + ' day' + (days > 1 ? 's' : '');
+    if (hours > 0) return hours + ' hour' + (hours > 1 ? 's' : '');
+    return 'Just now';
+}
+
+// ============================================
+// WALLETS VIEW (KOL TRACKING)
+// ============================================
+
+const sampleLeaderboard = [
+    { wallet: '7xKX...9mP4', pnl: '+$847,231', positive: true },
+    { wallet: '3nJR...kL2s', pnl: '+$523,412', positive: true },
+    { wallet: 'Hq5T...vW8n', pnl: '+$412,891', positive: true },
+    { wallet: '9pLm...xK3j', pnl: '+$298,445', positive: true },
+    { wallet: '2wQr...bN7h', pnl: '+$187,329', positive: true },
+    { wallet: 'Ks4X...mP9v', pnl: '+$156,782', positive: true },
+    { wallet: '8jTy...cR2q', pnl: '+$134,567', positive: true },
+    { wallet: 'Xn3L...hK8w', pnl: '+$98,234', positive: true },
+    { wallet: '5mRt...pV4s', pnl: '+$76,543', positive: true },
+    { wallet: 'Bw7J...nL6x', pnl: '+$54,321', positive: true }
+];
+
+const sampleWhaleTrades = [
+    { type: 'buy', token: 'BONK', amount: '142,500 SOL', time: '2m ago' },
+    { type: 'sell', token: 'WIF', amount: '89,200 SOL', time: '5m ago' },
+    { type: 'buy', token: 'POPCAT', amount: '67,800 SOL', time: '8m ago' },
+    { type: 'buy', token: 'MEW', amount: '45,000 SOL', time: '12m ago' },
+    { type: 'sell', token: 'MYRO', amount: '32,100 SOL', time: '15m ago' }
+];
+
+let trackedWallets = [];
+
+function setupWallets() {
+    const leaderboardList = document.getElementById('leaderboardList');
+    const whaleTradesList = document.getElementById('whaleTradesList');
+    const addWalletBtn = document.getElementById('addWalletBtn');
+    const walletAddressInput = document.getElementById('walletAddressInput');
+
+    if (!leaderboardList) return;
+
+    // Render leaderboard
+    leaderboardList.innerHTML = sampleLeaderboard.map((item, index) => `
+        <div class="leaderboard-item">
+            <div class="leaderboard-rank">${index + 1}</div>
+            <div class="leaderboard-wallet">${item.wallet}</div>
+            <div class="leaderboard-pnl ${item.positive ? 'positive' : 'negative'}">${item.pnl}</div>
+        </div>
+    `).join('');
+
+    // Render whale trades
+    if (whaleTradesList) {
+        whaleTradesList.innerHTML = sampleWhaleTrades.map(trade => `
+            <div class="whale-trade-item">
+                <span class="whale-trade-type ${trade.type}">${trade.type.toUpperCase()}</span>
+                <span class="whale-trade-token">${trade.token}</span>
+                <span class="whale-trade-amount">${trade.amount}</span>
+                <span class="whale-trade-time">${trade.time}</span>
+            </div>
+        `).join('');
+    }
+
+    // Add wallet tracking
+    if (addWalletBtn && walletAddressInput) {
+        addWalletBtn.addEventListener('click', () => {
+            const address = walletAddressInput.value.trim();
+            if (address && address.length >= 32) {
+                trackWallet(address);
+                walletAddressInput.value = '';
+            } else {
+                showToast('Invalid wallet address', 'error');
+            }
+        });
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            // In real app, would fetch data for the selected period
+        });
+    });
+}
+
+function trackWallet(address) {
+    const shortened = address.slice(0, 4) + '...' + address.slice(-4);
+    trackedWallets.push({ address, shortened });
+
+    const trackedList = document.getElementById('trackedWalletsList');
+    if (trackedList) {
+        trackedList.innerHTML = trackedWallets.map(w => `
+            <div class="leaderboard-item">
+                <div class="leaderboard-wallet">${w.shortened}</div>
+                <div class="leaderboard-pnl">Tracking...</div>
+            </div>
+        `).join('');
+    }
+
+    showToast('Wallet added to tracking', 'success');
+}
+
+// ============================================
+// TERMINAL VIEW (TRADING)
+// ============================================
+
+let terminalState = {
+    tradeType: 'buy',
+    amount: 1,
+    slippage: 5,
+    tokenMint: null
+};
+
+function setupTerminal() {
+    const tradeTabs = document.querySelectorAll('.trade-tab');
+    const presetBtns = document.querySelectorAll('.preset-btn');
+    const slippageBtns = document.querySelectorAll('.slippage-btn');
+    const executeBtn = document.getElementById('executeTradeBtn');
+    const tokenInput = document.getElementById('terminalTokenInput');
+
+    if (!tradeTabs.length) return;
+
+    // Trade type tabs
+    tradeTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tradeTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            terminalState.tradeType = tab.dataset.type;
+
+            // Update execute button color
+            if (executeBtn) {
+                if (terminalState.tradeType === 'sell') {
+                    executeBtn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                } else {
+                    executeBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                }
+            }
+        });
+    });
+
+    // Amount presets
+    presetBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            presetBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            terminalState.amount = parseFloat(btn.dataset.amount);
+        });
+    });
+
+    // Slippage options
+    slippageBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            slippageBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            terminalState.slippage = parseInt(btn.dataset.slip);
+            fetchTradeQuote(); // Refresh quote with new slippage
+        });
+    });
+
+    // Token input - fetch info when pasted
+    if (tokenInput) {
+        tokenInput.addEventListener('change', async () => {
+            const mint = tokenInput.value.trim();
+            if (mint && mint.length >= 32) {
+                terminalState.tokenMint = mint;
+                await fetchTerminalTokenInfo(mint);
+
+                // Show chart
+                const chartContainer = document.getElementById('terminalChart');
+                const chartFrame = document.getElementById('terminalChartFrame');
+                if (chartContainer && chartFrame) {
+                    chartContainer.style.display = 'block';
+                    chartFrame.src = `https://dexscreener.com/solana/${mint}?embed=1&theme=dark&trades=0&info=0`;
+                }
+
+                // Get quote
+                fetchTradeQuote();
+            }
+        });
+    }
+
+    // Execute trade button - NOW BUILT-IN
+    if (executeBtn) {
+        executeBtn.addEventListener('click', () => {
+            if (!publicKey) {
+                showToast('Connect wallet first', 'error');
+                return;
+            }
+
+            if (!terminalState.tokenMint) {
+                showToast('Enter a token address', 'error');
+                return;
+            }
+
+            // Execute trade in-app using Jupiter
+            executeTrade();
+        });
+    }
+
+    // Update button text based on wallet connection
+    updateTerminalButton();
+}
+
+async function fetchTerminalTokenInfo(mint) {
+    const infoContainer = document.getElementById('terminalTokenInfo');
+    if (!infoContainer) return;
+
+    try {
+        const response = await fetch(`${DEXSCREENER_API}/tokens/${mint}`);
+        const data = await response.json();
+
+        if (data.pairs && data.pairs.length > 0) {
+            const pair = data.pairs[0];
+            const token = pair.baseToken;
+
+            infoContainer.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                    <div style="font-weight: 700; font-size: 1.1rem;">${token.name}</div>
+                    <div style="color: var(--text-muted);">$${token.symbol}</div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Price</div>
+                        <div style="font-family: var(--font-mono);">$${formatScannerPrice(parseFloat(pair.priceUsd))}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">24h</div>
+                        <div style="color: ${pair.priceChange?.h24 >= 0 ? 'var(--green)' : 'var(--red)'}; font-family: var(--font-mono);">${pair.priceChange?.h24 >= 0 ? '+' : ''}${pair.priceChange?.h24?.toFixed(2) || 0}%</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">MCap</div>
+                        <div style="font-family: var(--font-mono);">$${formatLargeNumber(pair.marketCap || 0)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Liquidity</div>
+                        <div style="font-family: var(--font-mono);">$${formatLargeNumber(pair.liquidity?.usd || 0)}</div>
+                    </div>
+                </div>
+            `;
+        }
+    } catch (err) {
+        console.error('Failed to fetch token info:', err);
+    }
+}
+
+function updateTerminalButton() {
+    const executeBtn = document.getElementById('executeTradeBtn');
+    if (executeBtn) {
+        if (publicKey) {
+            executeBtn.textContent = `${terminalState.tradeType.toUpperCase()} on Axiom`;
+        } else {
+            executeBtn.textContent = 'Connect Wallet to Trade';
+        }
+    }
+}
+
+// ============================================
+// PULSE VIEW (TOKEN DISCOVERY)
+// ============================================
+
+let pulseTokens = [];
+let currentPulseFilter = 'new';
+
+async function setupPulse() {
+    const pulseTabs = document.querySelectorAll('.pulse-tab');
+
+    if (!pulseTabs.length) return;
+
+    // Tab switching
+    pulseTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            pulseTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            currentPulseFilter = tab.dataset.filter;
+            loadPulseTokens(currentPulseFilter);
+        });
+    });
+
+    // Initial load
+    loadPulseTokens('new');
+}
+
+async function loadPulseTokens(filter) {
+    const loading = document.getElementById('pulseLoading');
+    const list = document.getElementById('pulseList');
+
+    if (!list) return;
+
+    if (loading) loading.style.display = 'flex';
+    list.innerHTML = '';
+
+    try {
+        // Use DexScreener search API for Solana tokens
+        let searchQuery = '';
+
+        if (filter === 'new') {
+            // Search for new pump.fun tokens
+            searchQuery = 'pump';
+        } else if (filter === 'trending') {
+            // Search for popular memecoins
+            searchQuery = 'bonk wif popcat';
+        } else {
+            // Graduated - high volume tokens
+            searchQuery = 'jup ray jito';
+        }
+
+        const response = await fetch(`https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(searchQuery)}`);
+        const data = await response.json();
+
+        let tokens = [];
+
+        if (data.pairs && data.pairs.length > 0) {
+            // Get unique tokens from pairs (Solana only)
+            const seen = new Set();
+            tokens = data.pairs
+                .filter(p => {
+                    if (p.chainId !== 'solana' || !p.baseToken) return false;
+                    if (seen.has(p.baseToken.address)) return false;
+                    seen.add(p.baseToken.address);
+                    return true;
+                })
+                .slice(0, 15)
+                .map(p => ({
+                    address: p.baseToken.address,
+                    name: p.baseToken.name || 'Unknown',
+                    symbol: p.baseToken.symbol || '???',
+                    priceUsd: parseFloat(p.priceUsd) || 0,
+                    priceChange: p.priceChange?.h24 || 0,
+                    volume: p.volume?.h24 || 0,
+                    liquidity: p.liquidity?.usd || 0,
+                    marketCap: p.marketCap || 0,
+                    pairAddress: p.pairAddress,
+                    txns: (p.txns?.h24?.buys || 0) + (p.txns?.h24?.sells || 0),
+                    imageUrl: p.info?.imageUrl || null
+                }));
+        }
+
+        if (loading) loading.style.display = 'none';
+
+        if (tokens.length === 0) {
+            list.innerHTML = '<div class="empty-state">No tokens found</div>';
+        } else {
+            renderPulseTokens(tokens);
+        }
+
+    } catch (err) {
+        console.error('Failed to load pulse tokens:', err);
+        if (loading) loading.style.display = 'none';
+        list.innerHTML = '<div class="empty-state">Failed to load tokens. Try again.</div>';
+    }
+}
+
+function renderPulseTokens(tokens) {
+    const list = document.getElementById('pulseList');
+    if (!list) return;
+
+    list.innerHTML = tokens.map(token => {
+        const symbol = token.symbol || '???';
+        const name = token.name || 'Unknown';
+        const price = token.priceUsd ? `$${formatScannerPrice(token.priceUsd)}` : '-';
+        const change = token.priceChange || 0;
+        const changeClass = change >= 0 ? 'positive' : 'negative';
+        const liq = token.liquidity ? `$${formatLargeNumber(token.liquidity)}` : '-';
+        const vol = token.volume ? `$${formatLargeNumber(token.volume)}` : '-';
+        const address = token.address || '';
+
+        return `
+            <div class="pulse-item" data-address="${address}">
+                <div class="pulse-item-logo">${symbol.slice(0, 2).toUpperCase()}</div>
+                <div class="pulse-item-info">
+                    <div class="pulse-item-name">${name}</div>
+                    <div class="pulse-item-symbol">$${symbol}</div>
+                </div>
+                <div class="pulse-item-stats">
+                    <div class="pulse-stat">
+                        <span class="pulse-stat-label">Price</span>
+                        <span class="pulse-stat-value">${price}</span>
+                    </div>
+                    <div class="pulse-stat">
+                        <span class="pulse-stat-label">24h</span>
+                        <span class="pulse-stat-value ${changeClass}">${change >= 0 ? '+' : ''}${change.toFixed(1)}%</span>
+                    </div>
+                    <div class="pulse-stat">
+                        <span class="pulse-stat-label">Vol</span>
+                        <span class="pulse-stat-value">${vol}</span>
+                    </div>
+                </div>
+                <div class="pulse-item-actions">
+                    <button class="pulse-action-btn" onclick="quickBuyToken('${address}')">Buy</button>
+                    <button class="pulse-action-btn scan" onclick="scanFromPulse('${address}')">Scan</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function scanFromPulse(address) {
+    // Navigate to scanner and scan the token
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(item => {
+        item.classList.remove('active');
+        if (item.dataset.page === 'scanner') {
+            item.classList.add('active');
+        }
+    });
+
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('scannerView')?.classList.add('active');
+
+    // Set the address and scan
+    const scannerInput = document.getElementById('scannerInput');
+    if (scannerInput) {
+        scannerInput.value = address;
+        scanToken(address);
+    }
+}
+
+function quickBuyToken(address) {
+    // Navigate to terminal and set the token
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(item => {
+        item.classList.remove('active');
+        if (item.dataset.page === 'terminal') {
+            item.classList.add('active');
+        }
+    });
+
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('terminalView')?.classList.add('active');
+
+    // Set the token address
+    const tokenInput = document.getElementById('terminalTokenInput');
+    if (tokenInput) {
+        tokenInput.value = address;
+        terminalState.tokenMint = address;
+        fetchTerminalTokenInfo(address);
+        fetchTradeQuote();
+    }
+}
+
+// ============================================
+// ENHANCED TERMINAL (BUILT-IN TRADING)
+// ============================================
+
+async function fetchTradeQuote() {
+    if (!terminalState.tokenMint || !terminalState.amount) return;
+
+    const quoteEl = document.getElementById('tradeQuote');
+    const inputEl = document.getElementById('quoteInput');
+    const outputEl = document.getElementById('quoteOutput');
+    const impactEl = document.getElementById('quotePriceImpact');
+
+    if (!quoteEl) return;
+
+    try {
+        const SOL_MINT = 'So11111111111111111111111111111111111111112';
+        const amountInLamports = Math.floor(terminalState.amount * 1e9);
+
+        let inputMint, outputMint;
+        if (terminalState.tradeType === 'buy') {
+            inputMint = SOL_MINT;
+            outputMint = terminalState.tokenMint;
+        } else {
+            inputMint = terminalState.tokenMint;
+            outputMint = SOL_MINT;
+        }
+
+        const params = new URLSearchParams({
+            inputMint,
+            outputMint,
+            amount: amountInLamports.toString(),
+            slippageBps: (terminalState.slippage * 100).toString()
+        });
+
+        const response = await fetch(`${JUPITER_API}/quote?${params}`);
+        const quote = await response.json();
+
+        if (quote && quote.outAmount) {
+            currentQuote = quote;
+            quoteEl.style.display = 'block';
+
+            inputEl.textContent = `${terminalState.amount} SOL`;
+
+            // Calculate output
+            const outAmount = parseInt(quote.outAmount);
+            // For display, we need to know decimals - assume 6 for most memecoins
+            const outputFormatted = (outAmount / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 });
+            outputEl.textContent = `${outputFormatted} TOKENS`;
+
+            const priceImpact = quote.priceImpactPct ? (quote.priceImpactPct * 100).toFixed(2) : '0';
+            impactEl.textContent = `${priceImpact}%`;
+            impactEl.style.color = parseFloat(priceImpact) > 5 ? 'var(--red)' : 'var(--text-primary)';
+        }
+    } catch (err) {
+        console.error('Failed to fetch quote:', err);
+    }
+}
+
+async function executeTrade() {
+    if (!publicKey) {
+        showToast('Connect wallet first', 'error');
+        return;
+    }
+
+    if (!currentQuote) {
+        showToast('No quote available', 'error');
+        return;
+    }
+
+    const statusEl = document.getElementById('tradeStatus');
+    const messageEl = document.getElementById('statusMessage');
+    const executeBtn = document.getElementById('executeTradeBtn');
+
+    if (!statusEl || !messageEl) return;
+
+    try {
+        statusEl.style.display = 'block';
+        statusEl.className = 'trade-status pending';
+        messageEl.textContent = 'Getting swap transaction...';
+        executeBtn.disabled = true;
+
+        // Get swap transaction from Jupiter
+        const swapResponse = await fetch(`${JUPITER_API}/swap`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                quoteResponse: currentQuote,
+                userPublicKey: publicKey,
+                wrapAndUnwrapSol: true,
+                dynamicComputeUnitLimit: true,
+                prioritizationFeeLamports: 'auto'
+            })
+        });
+
+        const swapData = await swapResponse.json();
+
+        if (swapData.error) {
+            throw new Error(swapData.error);
+        }
+
+        messageEl.textContent = 'Please approve transaction in wallet...';
+
+        // Deserialize and sign transaction
+        const swapTxBuf = Buffer.from(swapData.swapTransaction, 'base64');
+        const tx = solanaWeb3.VersionedTransaction.deserialize(swapTxBuf);
+
+        // Sign with wallet
+        const signedTx = await wallet.signTransaction(tx);
+
+        messageEl.textContent = 'Sending transaction...';
+
+        // Send transaction
+        const connection = new solanaWeb3.Connection(HELIUS_RPC, 'confirmed');
+        const signature = await connection.sendRawTransaction(signedTx.serialize(), {
+            skipPreflight: true,
+            maxRetries: 3
+        });
+
+        messageEl.textContent = 'Confirming transaction...';
+
+        // Confirm
+        await connection.confirmTransaction(signature, 'confirmed');
+
+        statusEl.className = 'trade-status success';
+        messageEl.textContent = `Trade successful! TX: ${signature.slice(0, 8)}...`;
+
+        showToast('Trade executed successfully!', 'success');
+
+        // Reset after 5 seconds
+        setTimeout(() => {
+            statusEl.style.display = 'none';
+            executeBtn.disabled = false;
+        }, 5000);
+
+    } catch (err) {
+        console.error('Trade failed:', err);
+        statusEl.className = 'trade-status error';
+        messageEl.textContent = `Trade failed: ${err.message}`;
+        executeBtn.disabled = false;
+        showToast('Trade failed', 'error');
+    }
+}
+
+// ============================================
+// QUICK BUY FROM POSTS
+// ============================================
+
+// Regex to detect Solana addresses (Base58, 32-44 chars)
+const SOLANA_ADDRESS_REGEX = /[1-9A-HJ-NP-Za-km-z]{32,44}/g;
+
+function detectAndAddQuickBuy(postElement, content) {
+    const addresses = content.match(SOLANA_ADDRESS_REGEX);
+
+    if (addresses && addresses.length > 0) {
+        // Filter to likely token addresses (not common program addresses)
+        const tokenAddresses = addresses.filter(addr => {
+            // Skip common system addresses
+            const systemAddrs = ['11111111111111111111111111111111', 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'];
+            return !systemAddrs.some(s => addr.includes(s));
+        });
+
+        if (tokenAddresses.length > 0) {
+            const addr = tokenAddresses[0];
+            const quickBuyEl = document.createElement('div');
+            quickBuyEl.className = 'post-ca-detected';
+            quickBuyEl.innerHTML = `
+                <span class="post-ca-address">${addr.slice(0, 6)}...${addr.slice(-4)}</span>
+                <button class="post-quick-buy" onclick="quickBuyToken('${addr}')">Quick Buy</button>
+            `;
+            postElement.querySelector('.post-body')?.appendChild(quickBuyEl);
+        }
+    }
+}
+
 // Handle App Initialization
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', startApp);
+    document.addEventListener('DOMContentLoaded', () => {
+        startApp();
+        setupScanner();
+        setupWallets();
+        setupTerminal();
+        setupPulse();
+    });
 } else {
     startApp();
+    setupScanner();
+    setupWallets();
+    setupTerminal();
+    setupPulse();
 }
