@@ -60,6 +60,7 @@ let currentPrices = {
 };
 let posts = [];
 let supabaseClient = null;
+let currentUser = null;
 
 let swapState = {
     fromToken: TOKENS.SOL,
@@ -71,10 +72,77 @@ function initSupabase() {
     if (typeof window.supabase !== 'undefined') {
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         console.log('Supabase initialized');
+
+        // Listen for auth state changes
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+            console.log('Auth state changed:', event);
+            if (session) {
+                currentUser = session.user;
+                updateUIForLoggedInUser(session.user);
+            } else {
+                currentUser = null;
+                updateUIForLoggedOutUser();
+            }
+        });
+
+        // Check for existing session
+        checkExistingSession();
+
         return true;
     }
     console.warn('Supabase SDK not loaded');
     return false;
+}
+
+async function checkExistingSession() {
+    if (!supabaseClient) return;
+
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+        currentUser = session.user;
+        updateUIForLoggedInUser(session.user);
+    }
+}
+
+function updateUIForLoggedInUser(user) {
+    const connectBtn = document.getElementById('connectWallet');
+    const userAvatar = document.getElementById('userAvatar');
+    const userName = document.getElementById('userName');
+    const userEmail = document.getElementById('userEmail');
+
+    if (connectBtn) {
+        connectBtn.classList.add('connected');
+        const email = user.email || 'User';
+        const initial = email.charAt(0).toUpperCase();
+        connectBtn.innerHTML = `
+            <span class="user-initial">${initial}</span>
+            <span>${email.split('@')[0]}</span>
+        `;
+    }
+
+    if (userAvatar) userAvatar.textContent = user.email?.charAt(0).toUpperCase() || 'U';
+    if (userName) userName.textContent = user.user_metadata?.username || user.email?.split('@')[0] || 'User';
+    if (userEmail) userEmail.textContent = user.email || '';
+
+    // Close auth modal if open
+    const authModal = document.getElementById('authModal');
+    if (authModal) authModal.classList.remove('active');
+
+    showToast('Signed in successfully!', 'success');
+}
+
+function updateUIForLoggedOutUser() {
+    const connectBtn = document.getElementById('connectWallet');
+    if (connectBtn) {
+        connectBtn.classList.remove('connected');
+        connectBtn.innerHTML = `
+            <svg class="wallet-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                <line x1="1" y1="10" x2="23" y2="10" />
+            </svg>
+            <span class="wallet-text">Connect</span>
+        `;
+    }
 }
 
 function startApp() {
@@ -1415,19 +1483,110 @@ function setupWallets() {
 
 function trackWallet(address) {
     const shortened = address.slice(0, 4) + '...' + address.slice(-4);
-    trackedWallets.push({ address, shortened });
 
-    const trackedList = document.getElementById('trackedWalletsList');
-    if (trackedList) {
-        trackedList.innerHTML = trackedWallets.map(w => `
-            <div class="leaderboard-item">
-                <div class="leaderboard-wallet">${w.shortened}</div>
-                <div class="leaderboard-pnl">Tracking...</div>
-            </div>
-        `).join('');
+    // Check if already tracking
+    if (trackedWallets.some(w => w.address === address)) {
+        showToast('Already tracking this wallet', 'error');
+        return;
     }
 
+    trackedWallets.push({ address, shortened, loading: true, trades: [] });
+    renderTrackedWallets();
+
+    // Fetch wallet transactions
+    fetchWalletTransactions(address);
+
     showToast('Wallet added to tracking', 'success');
+}
+
+async function fetchWalletTransactions(address) {
+    try {
+        // Use Helius API to get transaction history
+        const response = await fetch(HELIUS_RPC, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                id: 'wallet-txns',
+                method: 'getSignaturesForAddress',
+                params: [address, { limit: 20 }]
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.result && data.result.length > 0) {
+            // Parse transactions
+            const trades = await Promise.all(
+                data.result.slice(0, 10).map(async (tx) => {
+                    return {
+                        signature: tx.signature,
+                        time: new Date(tx.blockTime * 1000).toLocaleString(),
+                        status: tx.confirmationStatus
+                    };
+                })
+            );
+
+            // Update the tracked wallet with trades
+            const walletIndex = trackedWallets.findIndex(w => w.address === address);
+            if (walletIndex !== -1) {
+                trackedWallets[walletIndex].loading = false;
+                trackedWallets[walletIndex].trades = trades;
+                trackedWallets[walletIndex].txCount = data.result.length;
+            }
+
+            renderTrackedWallets();
+        }
+    } catch (err) {
+        console.error('Failed to fetch wallet transactions:', err);
+        const walletIndex = trackedWallets.findIndex(w => w.address === address);
+        if (walletIndex !== -1) {
+            trackedWallets[walletIndex].loading = false;
+            trackedWallets[walletIndex].error = true;
+        }
+        renderTrackedWallets();
+    }
+}
+
+function renderTrackedWallets() {
+    const trackedList = document.getElementById('trackedWalletsList');
+    if (!trackedList) return;
+
+    if (trackedWallets.length === 0) {
+        trackedList.innerHTML = '<div class="empty-state">No wallets tracked yet</div>';
+        return;
+    }
+
+    trackedList.innerHTML = trackedWallets.map(w => `
+        <div class="tracked-wallet-item">
+            <div class="tracked-wallet-header">
+                <div class="tracked-wallet-address">${w.shortened}</div>
+                <button class="remove-wallet-btn" onclick="removeTrackedWallet('${w.address}')">×</button>
+            </div>
+            <div class="tracked-wallet-stats">
+                ${w.loading ? '<span class="loading-text">Loading...</span>' :
+            w.error ? '<span class="error-text">Failed to load</span>' :
+                `<span class="tx-count">${w.txCount || 0} txns</span>`
+        }
+            </div>
+            ${w.trades && w.trades.length > 0 ? `
+                <div class="recent-trades">
+                    ${w.trades.slice(0, 3).map(t => `
+                        <div class="trade-item">
+                            <span class="trade-sig">${t.signature.slice(0, 8)}...</span>
+                            <span class="trade-time">${t.time}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : ''}
+        </div>
+    `).join('');
+}
+
+function removeTrackedWallet(address) {
+    trackedWallets = trackedWallets.filter(w => w.address !== address);
+    renderTrackedWallets();
+    showToast('Wallet removed', 'success');
 }
 
 // ============================================
@@ -1942,6 +2101,183 @@ function detectAndAddQuickBuy(postElement, content) {
     }
 }
 
+// ============================================
+// AUTHENTICATION SETUP
+// ============================================
+
+function setupAuth() {
+    const authModal = document.getElementById('authModal');
+    const closeAuthBtn = document.getElementById('closeAuthModal');
+    const connectWalletBtn = document.getElementById('connectWallet');
+    const authTabs = document.querySelectorAll('.auth-tab');
+    const signinForm = document.getElementById('signinForm');
+    const signupForm = document.getElementById('signupForm');
+    const signinBtn = document.getElementById('signinBtn');
+    const signupBtn = document.getElementById('signupBtn');
+    const googleSignInBtn = document.getElementById('googleSignIn');
+    const userDropdown = document.getElementById('userDropdown');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    if (!authModal) return;
+
+    // Open auth modal when connect wallet clicked (if not logged in)
+    if (connectWalletBtn) {
+        connectWalletBtn.addEventListener('click', () => {
+            if (currentUser) {
+                // Toggle user dropdown
+                userDropdown.style.display = userDropdown.style.display === 'none' ? 'block' : 'none';
+            } else {
+                authModal.classList.add('active');
+            }
+        });
+    }
+
+    // Close modal
+    if (closeAuthBtn) {
+        closeAuthBtn.addEventListener('click', () => {
+            authModal.classList.remove('active');
+        });
+    }
+
+    // Close modal on overlay click
+    authModal.addEventListener('click', (e) => {
+        if (e.target === authModal) {
+            authModal.classList.remove('active');
+        }
+    });
+
+    // Tab switching
+    authTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            authTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            if (tab.dataset.tab === 'signin') {
+                signinForm.style.display = 'flex';
+                signupForm.style.display = 'none';
+            } else {
+                signinForm.style.display = 'none';
+                signupForm.style.display = 'flex';
+            }
+        });
+    });
+
+    // Sign In
+    if (signinBtn) {
+        signinBtn.addEventListener('click', async () => {
+            const email = document.getElementById('signinEmail').value;
+            const password = document.getElementById('signinPassword').value;
+
+            if (!email || !password) {
+                showToast('Please fill in all fields', 'error');
+                return;
+            }
+
+            signinBtn.disabled = true;
+            signinBtn.textContent = 'Signing in...';
+
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email,
+                    password
+                });
+
+                if (error) throw error;
+
+                // UI update handled by auth state listener
+
+            } catch (err) {
+                console.error('Sign in error:', err);
+                showToast(err.message || 'Sign in failed', 'error');
+            } finally {
+                signinBtn.disabled = false;
+                signinBtn.textContent = 'Sign In';
+            }
+        });
+    }
+
+    // Sign Up
+    if (signupBtn) {
+        signupBtn.addEventListener('click', async () => {
+            const username = document.getElementById('signupUsername').value;
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+
+            if (!username || !email || !password) {
+                showToast('Please fill in all fields', 'error');
+                return;
+            }
+
+            signupBtn.disabled = true;
+            signupBtn.textContent = 'Creating account...';
+
+            try {
+                const { data, error } = await supabaseClient.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        data: {
+                            username: username
+                        }
+                    }
+                });
+
+                if (error) throw error;
+
+                showToast('Account created! Check your email to verify.', 'success');
+                authModal.classList.remove('active');
+
+            } catch (err) {
+                console.error('Sign up error:', err);
+                showToast(err.message || 'Sign up failed', 'error');
+            } finally {
+                signupBtn.disabled = false;
+                signupBtn.textContent = 'Create Account';
+            }
+        });
+    }
+
+    // Google Sign In
+    if (googleSignInBtn) {
+        googleSignInBtn.addEventListener('click', async () => {
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        redirectTo: window.location.origin
+                    }
+                });
+
+                if (error) throw error;
+
+            } catch (err) {
+                console.error('Google sign in error:', err);
+                showToast('Google sign in failed', 'error');
+            }
+        });
+    }
+
+    // Logout
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                await supabaseClient.auth.signOut();
+                userDropdown.style.display = 'none';
+                showToast('Signed out', 'success');
+            } catch (err) {
+                console.error('Logout error:', err);
+            }
+        });
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (userDropdown && !userDropdown.contains(e.target) && !connectWalletBtn?.contains(e.target)) {
+            userDropdown.style.display = 'none';
+        }
+    });
+}
+
 // Handle App Initialization
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
@@ -1950,6 +2286,7 @@ if (document.readyState === 'loading') {
         setupWallets();
         setupTerminal();
         setupPulse();
+        setupAuth();
     });
 } else {
     startApp();
@@ -1957,4 +2294,5 @@ if (document.readyState === 'loading') {
     setupWallets();
     setupTerminal();
     setupPulse();
+    setupAuth();
 }
