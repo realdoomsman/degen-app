@@ -202,7 +202,7 @@ function getElements() {
         charCount: document.getElementById('charCount'),
         priceList: document.getElementById('priceList'),
         trendingList: document.getElementById('trendingList'),
-        navItems: document.querySelectorAll('.nav-item'),
+        navItems: document.querySelectorAll('.nav-item, .mobile-nav-item'),
         views: document.querySelectorAll('.view'),
         fromAmount: document.getElementById('fromAmount'),
         toAmount: document.getElementById('toAmount'),
@@ -302,14 +302,34 @@ function setupNavigation(elements) {
     elements.navItems.forEach(item => {
         item.addEventListener('click', (e) => {
             e.preventDefault();
+
+            // Handle Wallet Button separately if it's the mobile one
+            if (item.id === 'mobileWalletBtn') {
+                const connectWallet = document.getElementById('connectWallet');
+                if (connectWallet) connectWallet.click();
+                return;
+            }
+
             const page = item.dataset.page;
+            if (!page) return;
 
+            // Deactivate all nav items
             elements.navItems.forEach(i => i.classList.remove('active'));
-            item.classList.add('active');
 
+            // Activate all nav items representing this page (desktop & mobile)
+            elements.navItems.forEach(i => {
+                if (i.dataset.page === page) {
+                    i.classList.add('active');
+                }
+            });
+
+            // Switch View
             elements.views.forEach(view => view.classList.remove('active'));
             const targetView = document.getElementById(`${page}View`);
             if (targetView) targetView.classList.add('active');
+
+            // Scroll to top
+            window.scrollTo(0, 0);
         });
     });
 }
@@ -2288,16 +2308,8 @@ function setupAuth() {
         }
     });
 
-    // Only show auth modal if not a guest and not logged in
-    const isGuest = localStorage.getItem('degen_guest');
-    if (!currentUser && !isGuest) {
-        // Show modal after a short delay
-        setTimeout(() => {
-            if (!currentUser) {
-                authModal.classList.add('active');
-            }
-        }, 500);
-    }
+    // Don't auto-show auth modal - let users browse freely
+    // They can click "Connect" to sign in if they want
 }
 
 // Handle App Initialization
