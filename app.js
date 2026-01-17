@@ -2257,12 +2257,23 @@ function setupAuth() {
         });
     }
 
+    // Continue as Guest
+    const guestBtn = document.getElementById('continueAsGuest');
+    if (guestBtn) {
+        guestBtn.addEventListener('click', () => {
+            authModal.classList.remove('active');
+            localStorage.setItem('degen_guest', 'true');
+            showToast('Browsing as guest', 'success');
+        });
+    }
+
     // Logout
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
             try {
                 await supabaseClient.auth.signOut();
                 userDropdown.style.display = 'none';
+                localStorage.removeItem('degen_guest');
                 showToast('Signed out', 'success');
             } catch (err) {
                 console.error('Logout error:', err);
@@ -2276,6 +2287,17 @@ function setupAuth() {
             userDropdown.style.display = 'none';
         }
     });
+
+    // Only show auth modal if not a guest and not logged in
+    const isGuest = localStorage.getItem('degen_guest');
+    if (!currentUser && !isGuest) {
+        // Show modal after a short delay
+        setTimeout(() => {
+            if (!currentUser) {
+                authModal.classList.add('active');
+            }
+        }, 500);
+    }
 }
 
 // Handle App Initialization
