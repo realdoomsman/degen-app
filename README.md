@@ -78,7 +78,7 @@ KOL tracking and Top Traders leaderboard.
 
 ## 🎨 Design
 
-- **Color Scheme**: Dark theme with cyan/green accents
+- **Color Scheme**: Dark trading terminal with amber/gold accents
 - **Typography**: Inter + JetBrains Mono
 - **UI**: Premium, professional trading terminal aesthetic
 
