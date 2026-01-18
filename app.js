@@ -58,6 +58,7 @@ let currentPrices = {
     RNDR: 2.28,
     JITO: 0.42
 };
+let priceChanges = {}; // 24h price changes
 let posts = [];
 let supabaseClient = null;
 let currentUser = null;
@@ -197,10 +198,34 @@ function initializeApp() {
         setInterval(() => fetchRealPrices(elements), 15000);
         setInterval(() => loadPosts(elements), 30000);
 
+        // Setup scroll-to-top button
+        setupScrollToTop();
+
         console.log('DEGEN: App initialized successfully');
     } catch (err) {
         console.error('DEGEN: Component setup failed:', err);
     }
+}
+
+// Scroll to top button
+function setupScrollToTop() {
+    const btn = document.getElementById('scrollToTop');
+    if (!btn) return;
+
+    const mainContent = document.querySelector('.main-content');
+    if (!mainContent) return;
+
+    mainContent.addEventListener('scroll', () => {
+        if (mainContent.scrollTop > 300) {
+            btn.classList.add('visible');
+        } else {
+            btn.classList.remove('visible');
+        }
+    });
+
+    btn.addEventListener('click', () => {
+        mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+    });
 }
 
 function getElements() {
@@ -309,17 +334,20 @@ function parseContent(content) {
     let parsed = content
         // Highlight $TOKEN mentions
         .replace(/\$([A-Z]+)/g, '<span class="token-mention">$$$1</span>')
+        // Highlight #hashtags
+        .replace(/#(\w+)/g, '<span class="hashtag">#$1</span>')
         // Highlight @mentions
         .replace(/@(\w+)/g, '<span class="mention">@$1</span>');
 
-    // Detect and wrap contract addresses with copy button
+    // Detect and wrap contract addresses with copy and buy buttons
     parsed = parsed.replace(caRegex, (match) => {
         // Verify it looks like a Solana address (Base58)
         if (match.length >= 32 && match.length <= 44) {
             const short = match.slice(0, 6) + '...' + match.slice(-4);
             return `<span class="contract-address" data-ca="${match}" title="${match}">
                 <span class="ca-text">${short}</span>
-                <button class="copy-ca-btn" onclick="event.stopPropagation(); navigator.clipboard.writeText('${match}'); this.textContent='✓'; setTimeout(() => this.textContent='📋', 1000);">📋</button>
+                <button class="copy-ca-btn" onclick="event.stopPropagation(); navigator.clipboard.writeText('${match}'); this.textContent='✓'; setTimeout(() => this.textContent='📋', 1000);" title="Copy CA">📋</button>
+                <button class="quick-scan-btn" onclick="event.stopPropagation(); window.quickScan('${match}');" title="Scan Token">🔍</button>
             </span>`;
         }
         return match;
@@ -327,6 +355,26 @@ function parseContent(content) {
 
     return parsed;
 }
+
+// Quick scan from post CA - navigates to scanner with CA pre-filled
+window.quickScan = function (ca) {
+    // Navigate to scanner view
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    document.querySelector('[data-page="scanner"]')?.classList.add('active');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('scannerView')?.classList.add('active');
+
+    // Fill in the CA and trigger scan
+    const input = document.getElementById('scannerInput');
+    if (input) {
+        input.value = ca;
+        // Trigger scan if scanToken function exists
+        if (typeof scanToken === 'function') {
+            scanToken(ca);
+        }
+    }
+    showToast('Scanning token...', 'success');
+};
 
 function timeAgo(date) {
     const seconds = Math.floor((new Date() - new Date(date)) / 1000);
@@ -481,8 +529,18 @@ async function fetchRealBalances() {
 function setupFeed(elements) {
     elements.postInput.addEventListener('input', () => {
         const count = elements.postInput.value.length;
-        elements.charCount.textContent = count;
-        elements.charCount.style.color = count > 280 ? 'var(--red)' : count > 250 ? 'var(--accent)' : 'var(--text-muted)';
+        const remaining = 280 - count;
+        elements.charCount.textContent = remaining;
+
+        // Remove previous state classes
+        elements.charCount.classList.remove('warning', 'danger');
+
+        // Add appropriate class based on remaining chars
+        if (remaining < 0) {
+            elements.charCount.classList.add('danger');
+        } else if (remaining < 30) {
+            elements.charCount.classList.add('warning');
+        }
     });
 
     elements.postBtn.addEventListener('click', () => createPost(elements));
@@ -748,6 +806,7 @@ async function fetchRealPrices(elements) {
             const priceInfo = data[geckoId];
             if (priceInfo && priceInfo.usd !== undefined) {
                 currentPrices[symbol] = priceInfo.usd;
+                priceChanges[symbol] = priceInfo.usd_24h_change || 0;
             }
         }
 
@@ -772,7 +831,8 @@ function renderPrices(elements) {
     const priceData = Object.entries(TOKENS).slice(0, 6).map(([symbol, token]) => ({
         symbol,
         token,
-        price: currentPrices[symbol] || 0
+        price: currentPrices[symbol] || 0,
+        change: priceChanges[symbol] || 0
     })).filter(p => p.price > 0);
 
     if (priceData.length === 0) {
@@ -780,7 +840,12 @@ function renderPrices(elements) {
         return;
     }
 
-    elements.priceList.innerHTML = priceData.map(p => `
+    elements.priceList.innerHTML = priceData.map(p => {
+        const changeClass = p.change >= 0 ? 'positive' : 'negative';
+        const changeSign = p.change >= 0 ? '+' : '';
+        const changeDisplay = `${changeSign}${p.change.toFixed(1)}%`;
+
+        return `
         <div class="price-item" data-symbol="${p.symbol}">
             <div class="price-token">
                 <div class="price-token-icon">${p.token.logo}</div>
@@ -788,9 +853,10 @@ function renderPrices(elements) {
             </div>
             <div class="price-data">
                 <div class="price-usd">$${formatPrice(p.price)}</div>
+                <div class="price-change ${changeClass}">${changeDisplay}</div>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 
     // Click to quick swap
     document.querySelectorAll('.price-item').forEach(item => {
@@ -2338,6 +2404,7 @@ if (document.readyState === 'loading') {
         setupPulse();
         setupAuth();
         setupKeyboardShortcuts();
+        setupOnboarding();
     });
 } else {
     startApp();
@@ -2347,6 +2414,7 @@ if (document.readyState === 'loading') {
     setupPulse();
     setupAuth();
     setupKeyboardShortcuts();
+    setupOnboarding();
 }
 
 // Keyboard shortcuts for power users
@@ -2399,7 +2467,49 @@ function setupKeyboardShortcuts() {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.getElementById(`${page}View`)?.classList.add('active');
         }
+
+        // M = Toggle Matrix Mode
+        if (key === 'm') {
+            document.body.classList.toggle('matrix-mode');
+            const isMatrix = document.body.classList.contains('matrix-mode');
+            if (isMatrix) {
+                showToast('Entered Matrix Mode 🕶️', 'success');
+            } else {
+                showToast('Exited Matrix Mode', 'info');
+            }
+        }
     });
 
-    console.log('✓ Keyboard shortcuts: N=post, /=search, 1-5=navigate, Esc=close');
+    console.log('✓ Keyboard shortcuts: N=post, /=search, 1-5=navigate, M=Matrix, Esc=close');
+}
+
+// Onboarding Sequence
+function setupOnboarding() {
+    // Check if user has seen onboarding
+    if (localStorage.getItem('degen_onboarding_complete')) return;
+
+    const tips = [
+        { msg: "Welcome to DEGEN! The social terminal for crypto. 🚀", type: "success" },
+        { msg: "Pro Tip: Press 'N' to start a new post.", type: "info" },
+        { msg: "Paste any token CA in a post to get a Quick Buy button.", type: "info" },
+        { msg: "Use '/' to jump straight to the Token Scanner.", type: "info" }
+    ];
+
+    let i = 0;
+
+    // Show first tip immediately
+    setTimeout(() => {
+        showToast(tips[0].msg, tips[0].type);
+        i++;
+
+        const interval = setInterval(() => {
+            if (i >= tips.length) {
+                clearInterval(interval);
+                localStorage.setItem('degen_onboarding_complete', 'true');
+                return;
+            }
+            showToast(tips[i].msg, tips[i].type);
+            i++;
+        }, 5000);
+    }, 1500);
 }

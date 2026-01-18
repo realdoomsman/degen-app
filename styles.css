@@ -51,6 +51,29 @@
     --shadow-glow: 0 0 20px var(--accent-glow);
 }
 
+/* Matrix Mode Overrides */
+body.matrix-mode {
+    --bg-primary: #000000;
+    --bg-secondary: #050a05;
+    --bg-card: #0a110a;
+    --bg-hover: #0f1c0f;
+    --bg-input: #000000;
+
+    --accent: #00ff41;
+    --accent-hover: #00b32c;
+    --accent-dim: rgba(0, 255, 65, 0.15);
+    --accent-glow: rgba(0, 255, 65, 0.4);
+
+    --text-primary: #00ff41;
+    --text-secondary: #00cc33;
+    --text-muted: #008f24;
+
+    --border: #003300;
+    --border-light: #004400;
+
+    font-family: 'JetBrains Mono', monospace;
+}
+
 *,
 *::before,
 *::after {
@@ -159,6 +182,46 @@ body {
     transform: scale(0.98);
 }
 
+/* Scroll to Top Button */
+.scroll-to-top {
+    position: fixed;
+    bottom: 100px;
+    right: 24px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    transition: all var(--transition);
+    box-shadow: var(--shadow-md);
+    z-index: 90;
+}
+
+.scroll-to-top.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.scroll-to-top:hover {
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.scroll-to-top svg {
+    width: 20px;
+    height: 20px;
+}
+
 /* Layout */
 .app {
     display: grid;
@@ -259,7 +322,7 @@ body {
     top: 50%;
     transform: translateY(-50%);
     width: 3px;
-    height: 24px;
+    height: 16px;
     background: var(--accent);
     border-radius: 0 4px 4px 0;
     box-shadow: 0 0 12px var(--accent-glow);
@@ -386,11 +449,25 @@ body {
 
 .view {
     display: none;
+    opacity: 0;
 }
 
 
 .view.active {
     display: block;
+    animation: viewFadeIn 0.2s ease forwards;
+}
+
+@keyframes viewFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .view-header {
@@ -469,10 +546,77 @@ body {
     margin-top: 12px;
 }
 
+.compose-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.compose-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: all var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-btn:hover {
+    background: var(--accent-dim);
+    color: var(--accent-hover);
+}
+
+.icon-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
 .char-count {
     font-family: var(--font-mono);
     font-size: 0.8rem;
     color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.char-count.warning {
+    color: var(--accent);
+}
+
+.char-count.danger {
+    color: var(--red);
+}
+
+/* Character progress circle */
+.char-progress {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    transition: all var(--transition);
+}
+
+.char-count.warning .char-progress {
+    border-color: var(--accent);
+}
+
+.char-count.danger .char-progress {
+    border-color: var(--red);
+    background: rgba(239, 68, 68, 0.1);
 }
 
 /* Buttons */
@@ -625,6 +769,15 @@ body {
     text-decoration: underline;
 }
 
+.post-body .hashtag {
+    color: var(--blue);
+    cursor: pointer;
+}
+
+.post-body .hashtag:hover {
+    text-decoration: underline;
+}
+
 /* Contract Address in Posts */
 .contract-address {
     display: inline-flex;
@@ -654,6 +807,24 @@ body {
 
 .copy-ca-btn:hover {
     opacity: 1;
+    transform: scale(1.1);
+}
+
+.quick-scan-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 0 0 4px;
+    font-size: 0.9em;
+    opacity: 0.7;
+    transition: all var(--transition);
+    border-left: 1px solid var(--border);
+    margin-left: 4px;
+}
+
+.quick-scan-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
 }
 
 .post-actions {
