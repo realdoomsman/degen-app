@@ -4,14 +4,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DEGEN - Crypto Social</title>
-    <meta name="description" content="DEGEN - Social platform for crypto traders. Trade, share, connect.">
+    <title>DEGEN - Crypto Social Trading Platform</title>
+    <meta name="description"
+        content="DEGEN - The ultimate social platform for memecoin traders. Discover tokens, track wallets, trade, and connect with the crypto community.">
+
+    <!-- Favicon - Using emoji as data URI -->
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+
+    <!-- Theme Color for mobile browsers -->
+    <meta name="theme-color" content="#0D0D0F">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- Open Graph / Social Sharing -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="DEGEN - Crypto Social Trading Platform">
+    <meta property="og:description"
+        content="The ultimate social platform for memecoin traders. Discover tokens, track wallets, and trade.">
+    <meta property="og:url" content="https://degen.app">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="DEGEN - Crypto Social">
+    <meta name="twitter:description" content="Social platform for memecoin traders">
+
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=15">
+    <link rel="stylesheet" href="styles.css?v=17">
 </head>
 
 <body>
@@ -89,12 +111,16 @@
             </nav>
 
             <div class="wallet-section">
+                <div class="connection-status" id="connectionStatus">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Live</span>
+                </div>
                 <button class="connect-wallet" id="connectWallet">
                     <svg class="wallet-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
                         <line x1="1" y1="10" x2="23" y2="10" />
                     </svg>
-                    <span id="walletText">Connect Wallet</span>
+                    <span id="walletText">Connect</span>
                 </button>
             </div>
         </aside>
@@ -715,7 +741,7 @@
     <!-- Scripts -->
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
-    <script src="app.js?v=15"></script>
+    <script src="app.js?v=17"></script>
 </body>
 
 </html>

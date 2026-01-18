@@ -291,10 +291,41 @@ function debounce(func, wait) {
     };
 }
 
+// Generate a unique gradient based on string hash
+function generateAvatarGradient(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue1 = Math.abs(hash % 360);
+    const hue2 = (hue1 + 40) % 360;
+    return `linear-gradient(135deg, hsl(${hue1}, 70%, 50%), hsl(${hue2}, 70%, 40%))`;
+}
+
 function parseContent(content) {
-    return content
-        .replace(/\$([A-Z]+)/g, '<span class="token">$$$1</span>')
+    // Detect Solana contract addresses (32-44 chars, alphanumeric)
+    const caRegex = /\b([1-9A-HJ-NP-Za-km-z]{32,44})\b/g;
+
+    let parsed = content
+        // Highlight $TOKEN mentions
+        .replace(/\$([A-Z]+)/g, '<span class="token-mention">$$$1</span>')
+        // Highlight @mentions
         .replace(/@(\w+)/g, '<span class="mention">@$1</span>');
+
+    // Detect and wrap contract addresses with copy button
+    parsed = parsed.replace(caRegex, (match) => {
+        // Verify it looks like a Solana address (Base58)
+        if (match.length >= 32 && match.length <= 44) {
+            const short = match.slice(0, 6) + '...' + match.slice(-4);
+            return `<span class="contract-address" data-ca="${match}" title="${match}">
+                <span class="ca-text">${short}</span>
+                <button class="copy-ca-btn" onclick="event.stopPropagation(); navigator.clipboard.writeText('${match}'); this.textContent='✓'; setTimeout(() => this.textContent='📋', 1000);">📋</button>
+            </span>`;
+        }
+        return match;
+    });
+
+    return parsed;
 }
 
 function timeAgo(date) {
@@ -563,10 +594,12 @@ function renderFeed(elements) {
     elements.feed.innerHTML = posts.map(post => {
         const isLiked = publicKey && post.liked_by?.includes(publicKey);
         const isReposted = publicKey && post.reposted_by?.includes(publicKey);
+        const avatarGradient = generateAvatarGradient(post.author_handle || post.wallet_address || 'anon');
+        const initials = (post.author_name || 'AN').slice(0, 2).toUpperCase();
 
         return `
             <article class="post" data-id="${post.id}">
-                <div class="post-avatar">${(post.author_name || 'AN').slice(0, 2).toUpperCase()}</div>
+                <div class="post-avatar" style="background: ${avatarGradient}">${initials}</div>
                 <div class="post-content">
                     <div class="post-header">
                         <span class="post-name">${post.author_name || 'Anon'}</span>
@@ -657,8 +690,12 @@ async function handlePostAction(action, postId, elements) {
             break;
 
         case 'share':
-            navigator.clipboard.writeText(`${window.location.origin}#post-${postId}`);
-            showToast('Link copied', 'success');
+            // Create share menu or share to Twitter
+            const shareText = encodeURIComponent(post.content.slice(0, 200) + (post.content.length > 200 ? '...' : ''));
+            const shareUrl = encodeURIComponent(`${window.location.origin}`);
+            const twitterUrl = `https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}&via=DEGEN`;
+            window.open(twitterUrl, '_blank', 'width=600,height=400');
+            showToast('Opening Twitter...', 'success');
             break;
 
         case 'reply':
@@ -2300,6 +2337,7 @@ if (document.readyState === 'loading') {
         setupTerminal();
         setupPulse();
         setupAuth();
+        setupKeyboardShortcuts();
     });
 } else {
     startApp();
@@ -2308,4 +2346,60 @@ if (document.readyState === 'loading') {
     setupTerminal();
     setupPulse();
     setupAuth();
+    setupKeyboardShortcuts();
+}
+
+// Keyboard shortcuts for power users
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // Don't trigger if typing in input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        const key = e.key.toLowerCase();
+
+        // N = New post (focus compose box)
+        if (key === 'n') {
+            e.preventDefault();
+            const postInput = document.getElementById('postInput');
+            if (postInput) {
+                // Navigate to feed first
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                document.querySelector('[data-page="feed"]')?.classList.add('active');
+                document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+                document.getElementById('feedView')?.classList.add('active');
+                postInput.focus();
+            }
+        }
+
+        // / = Focus search
+        if (key === '/') {
+            e.preventDefault();
+            const searchInput = document.getElementById('scannerInput');
+            if (searchInput) {
+                document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                document.querySelector('[data-page="scanner"]')?.classList.add('active');
+                document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+                document.getElementById('scannerView')?.classList.add('active');
+                searchInput.focus();
+            }
+        }
+
+        // Escape = Close modals
+        if (key === 'escape') {
+            document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
+        }
+
+        // 1-5 = Navigate to views
+        const viewMap = { '1': 'feed', '2': 'swap', '3': 'scanner', '4': 'terminal', '5': 'pulse' };
+        if (viewMap[key]) {
+            e.preventDefault();
+            const page = viewMap[key];
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(`${page}View`)?.classList.add('active');
+        }
+    });
+
+    console.log('✓ Keyboard shortcuts: N=post, /=search, 1-5=navigate, Esc=close');
 }
