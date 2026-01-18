@@ -67,30 +67,41 @@ let swapState = {
     toToken: TOKENS.USDC
 };
 
-// Initialize Supabase client
+// Initialize Supabase client with retry
 function initSupabase() {
     if (typeof window.supabase !== 'undefined') {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        console.log('Supabase initialized');
+        try {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('✓ Supabase initialized');
 
-        // Listen for auth state changes
-        supabaseClient.auth.onAuthStateChange((event, session) => {
-            console.log('Auth state changed:', event);
-            if (session) {
-                currentUser = session.user;
-                updateUIForLoggedInUser(session.user);
-            } else {
-                currentUser = null;
-                updateUIForLoggedOutUser();
-            }
-        });
+            // Listen for auth state changes
+            supabaseClient.auth.onAuthStateChange((event, session) => {
+                console.log('Auth state changed:', event);
+                if (session) {
+                    currentUser = session.user;
+                    updateUIForLoggedInUser(session.user);
+                } else {
+                    currentUser = null;
+                    updateUIForLoggedOutUser();
+                }
+            });
 
-        // Check for existing session
-        checkExistingSession();
-
-        return true;
+            // Check for existing session
+            checkExistingSession();
+            return true;
+        } catch (err) {
+            console.error('Supabase init error:', err);
+            return false;
+        }
     }
-    console.warn('Supabase SDK not loaded');
+
+    // SDK not loaded yet, will retry
+    console.warn('Supabase SDK not loaded yet, retrying...');
+    setTimeout(() => {
+        if (!supabaseClient) {
+            initSupabase();
+        }
+    }, 500);
     return false;
 }
 
@@ -2153,12 +2164,20 @@ function setupAuth() {
             signinBtn.textContent = 'Signing in...';
 
             try {
+                if (!supabaseClient) {
+                    throw new Error('Authentication service not ready. Please refresh the page.');
+                }
+
                 const { data, error } = await supabaseClient.auth.signInWithPassword({
                     email,
                     password
                 });
 
                 if (error) throw error;
+
+                // Close modal on success
+                authModal.classList.remove('active');
+                showToast('Signed in successfully!', 'success');
 
                 // UI update handled by auth state listener
 
@@ -2188,6 +2207,10 @@ function setupAuth() {
             signupBtn.textContent = 'Creating account...';
 
             try {
+                if (!supabaseClient) {
+                    throw new Error('Authentication service not ready. Please refresh the page.');
+                }
+
                 const { data, error } = await supabaseClient.auth.signUp({
                     email,
                     password,

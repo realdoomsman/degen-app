@@ -1,59 +1,54 @@
 /* DEGEN - CYBER INDUSTRIAL TERMINAL */
 :root {
-    /* Cyber Noir Palette */
-    --bg-primary: #000000;
-    --bg-secondary: #0a0a0a;
-    --bg-card: #050505;
-    --bg-hover: #111111;
-    --bg-input: #000000;
-    --bg-glass: rgba(0, 0, 0, 0.9);
+    /* Trading Terminal Dark Theme */
+    --bg-primary: #0D0D0F;
+    --bg-secondary: #141418;
+    --bg-card: #1A1A1F;
+    --bg-hover: #222228;
+    --bg-input: #0D0D0F;
+    --bg-glass: rgba(20, 20, 24, 0.95);
 
-    /* High Energy Accents */
-    --accent: #ccff00;
-    /* Acid Green */
-    --accent-hover: #b3e600;
-    --accent-dim: rgba(204, 255, 0, 0.1);
-    --accent-glow: rgba(204, 255, 0, 0.3);
+    /* Amber/Gold Accent - Unique & Premium */
+    --accent: #F59E0B;
+    --accent-hover: #D97706;
+    --accent-dim: rgba(245, 158, 11, 0.15);
+    --accent-glow: rgba(245, 158, 11, 0.4);
 
-    --purple: #d500f9;
-    --green: #00ff41;
-    --red: #ff003c;
-    --yellow: #fcee0a;
-    --blue: #00f0ff;
-    /* Cyber Blue */
+    --green: #10B981;
+    --red: #EF4444;
+    --blue: #3B82F6;
+    --purple: #8B5CF6;
+    --cyan: #06B6D4;
 
-    /* Stark Contrast Text */
-    --text-primary: #ffffff;
-    --text-secondary: #888888;
-    --text-muted: #444444;
+    /* High Contrast Text */
+    --text-primary: #FAFAFA;
+    --text-secondary: #A1A1AA;
+    --text-muted: #52525B;
 
-    /* Hard Borders */
-    --border: #333333;
-    --border-light: #444444;
+    /* Subtle Borders */
+    --border: #27272A;
+    --border-light: #3F3F46;
     --border-glow: var(--accent);
 
-    /* Typography */
-    --font-primary: 'Chakra Petch', 'Inter', sans-serif;
-    /* Tech feel */
+    /* Modern Fonts */
+    --font-primary: 'Inter', -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
 
-    /* Brutalist Geometry */
-    --radius-sm: 0px;
-    --radius-md: 2px;
-    --radius-lg: 0px;
-    --radius-xl: 4px;
+    /* Tight Radius */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+    --radius-xl: 12px;
 
-    /* Speed Transitions */
-    --transition: 0.15s cubic-bezier(0, 0, 0.2, 1);
+    --transition: 0.15s ease;
+    --sidebar-width: 200px;
+    --right-sidebar-width: 280px;
 
-    --sidebar-width: 240px;
-    --right-sidebar-width: 320px;
-
-    /* Hard Shadows */
-    --shadow-sm: 4px 4px 0px rgba(20, 20, 20, 1);
-    --shadow-md: 6px 6px 0px rgba(20, 20, 20, 1);
-    --shadow-lg: 10px 10px 0px rgba(20, 20, 20, 1);
-    --shadow-glow: 0 0 15px var(--accent-glow);
+    /* Subtle Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+    --shadow-glow: 0 0 20px var(--accent-glow);
 }
 
 *,
@@ -71,13 +66,8 @@ html {
 body {
     font-family: var(--font-primary);
     background: var(--bg-primary);
-    /* Cyber Grid Background */
-    background-image:
-        linear-gradient(rgba(30, 30, 30, 0.3) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(30, 30, 30, 0.3) 1px, transparent 1px);
-    background-size: 40px 40px;
     color: var(--text-primary);
-    line-height: 1.5;
+    line-height: 1.6;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
 }
@@ -138,16 +128,11 @@ body {
 }
 
 .logo-text {
-    font-size: 1.8rem;
-    font-weight: 800;
+    font-size: 1.5rem;
+    font-weight: 700;
     font-family: var(--font-primary);
-    text-transform: uppercase;
-    letter-spacing: -0.05em;
-    color: var(--text-primary);
-    text-shadow: 4px 4px 0px var(--accent-dim);
-    position: relative;
-    padding-left: 12px;
-    border-left: 4px solid var(--accent);
+    color: var(--accent);
+    letter-spacing: -0.02em;
 }
 
 @keyframes logoGlow {
